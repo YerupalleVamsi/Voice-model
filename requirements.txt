@@ -8,4 +8,5 @@ transformers
 speechrecognition
 pydub
 ffmpeg-python
+ffmpeg
 
