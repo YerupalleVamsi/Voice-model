@@ -1,45 +1,59 @@
 import streamlit as st
 import os
 import csv
+from datetime import datetime
 import joblib
 import numpy as np
-from datetime import datetime
+from pydub import AudioSegment
 from features import extract_features
 from speech_to_text import speech_to_text
 from sentiment import get_sentiment
 
+# Set title
 st.title("🎙️ Speech Emotion & Sentiment Analyzer")
 
-model_path = "emotion_model.pkl"
+# Try to load model
+try:
+    model = joblib.load("emotion_model.pkl")
+except FileNotFoundError:
+    st.warning("⚠️ No trained model found. Predictions will be unavailable until trained.")
+    model = None
 
-if os.path.exists(model_path):
-    model = joblib.load(model_path)
-else:
-    st.warning("❌ No emotion model found. Please run `train_model.py` first.")
-    st.stop()
+# Convert MP3 to WAV
+def convert_mp3_to_wav(mp3_file, output_path="temp.wav"):
+    audio = AudioSegment.from_file(mp3_file, format="mp3")
+    audio.export(output_path, format="wav")
 
+# Save results to CSV
 def save_result_to_csv(data, filename="results_log.csv"):
     file_exists = os.path.isfile(filename)
-    with open(filename, "a", newline='', encoding="utf-8") as f:
+    with open(filename, mode="a", newline='', encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=data.keys())
         if not file_exists:
             writer.writeheader()
         writer.writerow(data)
 
-uploaded_file = st.file_uploader("Upload a .wav audio file", type=["wav"])
+# Upload audio
+uploaded_file = st.file_uploader("📤 Upload an audio file", type=["mp3", "wav"])
 
 if uploaded_file:
-    temp_audio_path = f"uploads/{datetime.now().strftime('%Y%m%d%H%M%S')}_{uploaded_file.name}"
-    os.makedirs("uploads", exist_ok=True)
-    with open(temp_audio_path, "wb") as f:
-        f.write(uploaded_file.read())
+    # Save uploaded file as .wav
+    temp_path = "temp.wav"
+    if uploaded_file.name.endswith(".mp3"):
+        convert_mp3_to_wav(uploaded_file, temp_path)
+    else:
+        with open(temp_path, "wb") as f:
+            f.write(uploaded_file.read())
 
-    features = extract_features(temp_audio_path).reshape(1, -1)
-    emotion = model.predict(features)[0]
+    # Extract features and make prediction
+    features = extract_features(temp_path).reshape(1, -1)
+    emotion = model.predict(features)[0] if model else "N/A"
 
-    text = speech_to_text(temp_audio_path)
+    # Speech to text + sentiment
+    text = speech_to_text(temp_path)
     sentiment = get_sentiment(text)
 
+    # Display
     st.subheader("🎧 Transcription")
     st.write(text)
 
@@ -49,21 +63,23 @@ if uploaded_file:
     st.subheader("🧠 Sentiment")
     st.write(f"{sentiment['label']} (Confidence: {sentiment['score']:.2f})")
 
+    # Feedback
     feedback = st.selectbox("Was the emotion prediction correct?", ["Yes", "No"])
     correct_label = None
     if feedback == "No":
-        correct_label = st.selectbox("Select correct emotion:", ["happy", "sad", "angry", "neutral"])
+        correct_label = st.selectbox("Select the correct emotion:", ["happy", "sad", "angry", "neutral"])
 
     if st.button("Submit Feedback" if feedback == "No" else "Save Result"):
         log_entry = {
-            "file_name": temp_audio_path,
+            "file_name": uploaded_file.name,
             "transcription": text,
             "predicted_emotion": emotion,
-            "sentiment_label": sentiment['label'],
-            "sentiment_score": round(sentiment['score'], 2),
+            "sentiment_label": sentiment["label"],
+            "sentiment_score": round(sentiment["score"], 2),
             "user_feedback": feedback,
             "corrected_emotion": correct_label if feedback == "No" else "",
             "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         save_result_to_csv(log_entry)
-        st.success("✅ Result logged! You can now retrain the model with `train_model.py`.")
+        st.success("✅ Logged successfully!")
+
