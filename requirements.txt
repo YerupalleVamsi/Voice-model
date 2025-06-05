@@ -6,5 +6,4 @@ pandas
 matplotlib
 speechrecognition
 transformers
-parselmouth
-torch
+joblib
