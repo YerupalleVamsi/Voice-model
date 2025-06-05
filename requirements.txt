@@ -1,11 +1,8 @@
 streamlit
 librosa
-soundfile
-scikit-learn
+numpy
 pandas
-matplotlib
-speechrecognition
-transformers
+scikit-learn
 joblib
-torch
 transformers
+speechrecognition
