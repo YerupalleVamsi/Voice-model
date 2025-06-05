@@ -1,8 +1,16 @@
 from transformers import pipeline
-
-sentiment_analyzer = pipeline("sentiment-analysis")
+import os
 
 def get_sentiment(text):
-    if not text:
-        return {"label": "NEUTRAL", "score": 0.0}
-    return sentiment_analyzer(text)[0]
+    try:
+        sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+        result = sentiment_analyzer(text)[0]
+        return {
+            "label": result["label"],
+            "score": result["score"]
+        }
+    except Exception as e:
+        return {
+            "label": "unknown",
+            "score": 0.0
+        }
