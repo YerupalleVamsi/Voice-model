@@ -2,54 +2,54 @@ import os
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.pipeline import make_pipeline
 import joblib
 from features import extract_features
 
-def train_emotion_and_sentiment_model(log_file="results_log.csv", emotion_model_file="emotion_model.pkl", sentiment_model_file="sentiment_model.pkl"):
+def train_models(log_file="results_log.csv"):
     if not os.path.exists(log_file):
-        print(f"❌ No training data found at {log_file}")
+        print("⚠️ No log file found.")
         return
 
     df = pd.read_csv(log_file)
 
-    # -------- Train Emotion Model -------- #
-    emotion_df = df[(df['user_feedback'] == 'No') & (df['corrected_emotion'].notnull())]
+    # 🎭 Emotion model training
+    emotion_df = df[(df["emotion_feedback"] == "No") & (df["corrected_emotion"].notnull())]
     X_emotion, y_emotion = [], []
-
     for _, row in emotion_df.iterrows():
-        if os.path.exists(row['file_name']):
-            features = extract_features(row['file_name'])
-            X_emotion.append(features)
-            y_emotion.append(row['corrected_emotion'])
-
+        if os.path.exists(row["file_name"]):
+            try:
+                features = extract_features(row["file_name"])
+                X_emotion.append(features)
+                y_emotion.append(row["corrected_emotion"])
+            except:
+                continue
     if X_emotion:
-        clf_emotion = RandomForestClassifier()
-        clf_emotion.fit(X_emotion, y_emotion)
-        joblib.dump(clf_emotion, emotion_model_file)
-        print(f"✅ Emotion model trained and saved to {emotion_model_file}")
+        clf = RandomForestClassifier()
+        clf.fit(X_emotion, y_emotion)
+        joblib.dump(clf, "emotion_model.pkl")
+        print("✅ Emotion model trained.")
     else:
-        print("⚠️ No valid emotion feedback data available for training.")
+        print("⚠️ No valid emotion training data found.")
 
-    # -------- Train Sentiment Model -------- #
-    sentiment_df = df[(df['sentiment_feedback'] == 'No') & (df['corrected_sentiment'].notnull()) & (df['transcription'].notnull())]
-    X_sentiment = sentiment_df['transcription'].tolist()
-    y_sentiment = sentiment_df['corrected_sentiment'].tolist()
-
-    if X_sentiment:
-        from sklearn.feature_extraction.text import TfidfVectorizer
-        from sklearn.pipeline import make_pipeline
-
-        vectorizer = TfidfVectorizer()
-        clf_sentiment = RandomForestClassifier()
-        sentiment_pipeline = make_pipeline(vectorizer, clf_sentiment)
-
-        sentiment_pipeline.fit(X_sentiment, y_sentiment)
-        joblib.dump(sentiment_pipeline, sentiment_model_file)
-        print(f"✅ Sentiment model trained and saved to {sentiment_model_file}")
+    # 🧠 Sentiment model training
+    sentiment_df = df[(df["sentiment_feedback"] == "No") & (df["corrected_sentiment"].notnull())]
+    if not sentiment_df.empty:
+        X_sent = sentiment_df["transcription"]
+        y_sent = sentiment_df["corrected_sentiment"]
+        sentiment_clf = make_pipeline(
+            TfidfVectorizer(),
+            RandomForestClassifier()
+        )
+        sentiment_clf.fit(X_sent, y_sent)
+        joblib.dump(sentiment_clf, "sentiment_model.pkl")
+        print("✅ Sentiment model trained.")
     else:
-        print("⚠️ No valid sentiment feedback data available for training.")
+        print("⚠️ No valid sentiment training data found.")
 
 if __name__ == "__main__":
-    train_emotion_and_sentiment_model()
+    train_models()
+
 
 
