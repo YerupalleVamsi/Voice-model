@@ -1,5 +1,3 @@
-### 📁 app.py (Main Streamlit App)
-
 import streamlit as st
 import joblib
 import os
@@ -15,13 +13,11 @@ from sentiment import get_sentiment
 st.title("🎙️ Speech Emotion & Sentiment Analyzer")
 
 # Load model
-model = joblib.load("emotion_model.pkl")
 try:
     model = joblib.load("emotion_model.pkl")
 except FileNotFoundError:
     st.error("❌ Emotion model file not found. Please upload 'emotion_model.pkl'.")
     st.stop()
-
 
 # CSV Logging function
 def save_result_to_csv(data, filename="results_log.csv"):
@@ -37,17 +33,17 @@ uploaded_file = st.file_uploader("Upload a .wav audio file", type=["wav"])
 
 if uploaded_file:
     unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uploaded_file.name}"
-with open(unique_filename, "wb") as f:
-    f.write(uploaded_file.read())
-
-
+    
+    # Save uploaded file
+    with open(unique_filename, "wb") as f:
+        f.write(uploaded_file.read())
 
     # Extract emotion features
-    features = extract_features("temp.wav").reshape(1, -1)
+    features = extract_features(unique_filename).reshape(1, -1)
     emotion = model.predict(features)[0]
 
     # Convert speech to text
-    text = speech_to_text("temp.wav")
+    text = speech_to_text(unique_filename)
     sentiment = get_sentiment(text)
 
     # Display results
@@ -68,7 +64,7 @@ with open(unique_filename, "wb") as f:
 
     if st.button("Submit Feedback" if feedback == "No" else "Save Result"):
         log_entry = {
-            "file_name": uploaded_file.name,
+            "file_name": unique_filename,
             "transcription": text,
             "predicted_emotion": emotion,
             "sentiment_label": sentiment['label'],
