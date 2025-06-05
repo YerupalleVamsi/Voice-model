@@ -20,9 +20,12 @@ except FileNotFoundError:
     model = None
 
 # Convert MP3 to WAV
+from io import BytesIO
+
 def convert_mp3_to_wav(mp3_file, output_path="temp.wav"):
-    audio = AudioSegment.from_file(mp3_file, format="mp3")
+    audio = AudioSegment.from_file(BytesIO(mp3_file.read()), format="mp3")
     audio.export(output_path, format="wav")
+
 
 # Save results to CSV
 def save_result_to_csv(data, filename="results_log.csv"):
