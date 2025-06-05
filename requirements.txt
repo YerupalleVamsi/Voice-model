@@ -7,3 +7,5 @@ joblib
 transformers
 speechrecognition
 pydub
+ffmpeg-python
+
