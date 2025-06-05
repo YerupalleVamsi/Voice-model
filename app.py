@@ -3,17 +3,30 @@
 import streamlit as st
 import joblib
 import os
+import csv
+from datetime import datetime
+import pandas as pd
+import numpy as np
+
 from utils.features import extract_features
 from utils.speech_to_text import speech_to_text
 from utils.sentiment import get_sentiment
-import pandas as pd
-import numpy as np
 
 st.title("🎙️ Speech Emotion & Sentiment Analyzer")
 
 # Load model
 model = joblib.load("emotion_model.pkl")
 
+# CSV Logging function
+def save_result_to_csv(data, filename="results_log.csv"):
+    file_exists = os.path.isfile(filename)
+    with open(filename, mode="a", newline='', encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=data.keys())
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(data)
+
+# File upload
 uploaded_file = st.file_uploader("Upload a .wav audio file", type=["wav"])
 
 if uploaded_file:
@@ -40,24 +53,20 @@ if uploaded_file:
 
     # Feedback
     feedback = st.selectbox("Was the emotion prediction correct?", ["Yes", "No"])
+    correct_label = None
     if feedback == "No":
         correct_label = st.selectbox("Select correct emotion:", ["happy", "sad", "angry", "neutral"])
-        if st.button("Submit Feedback"):
-            new_data = np.hstack([features[0], correct_label])
-            df = pd.DataFrame([new_data])
-            if os.path.exists("feedback.csv"):
-                df.to_csv("feedback.csv", mode="a", header=False, index=False)
-            else:
-                df.to_csv("feedback.csv", index=False)
-            st.success("✅ Feedback submitted!")
-    import csv
-    from datetime import datetime
 
-    def save_result_to_csv(data, filename="results_log.csv"):
-    file_exists = os.path.isfile(filename)
-    with open(filename, mode="a", newline='', encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=data.keys())
-        if not file_exists:
-            writer.writeheader()
-        writer.writerow(data)
-
+    if st.button("Submit Feedback" if feedback == "No" else "Save Result"):
+        log_entry = {
+            "file_name": uploaded_file.name,
+            "transcription": text,
+            "predicted_emotion": emotion,
+            "sentiment_label": sentiment['label'],
+            "sentiment_score": round(sentiment['score'], 2),
+            "user_feedback": feedback,
+            "corrected_emotion": correct_label if feedback == "No" else "",
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        save_result_to_csv(log_entry)
+        st.success("✅ Result logged!")
