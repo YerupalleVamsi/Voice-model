@@ -1,0 +1,10 @@
+streamlit
+librosa
+soundfile
+scikit-learn
+pandas
+matplotlib
+speechrecognition
+transformers
+parselmouth
+torch
