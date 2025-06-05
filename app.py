@@ -9,44 +9,66 @@ from pydub import AudioSegment
 from features import extract_features
 from speech_to_text import speech_to_text
 
-# Load models
-emotion_model = joblib.load("emotion_model.pkl") if os.path.exists("emotion_model.pkl") else None
-sentiment_model = joblib.load("sentiment_model.pkl") if os.path.exists("sentiment_model.pkl") else None
-
+# Set title
 st.title("🎙️ Speech Emotion & Sentiment Analyzer")
+
+# Load emotion model
+try:
+    emotion_model = joblib.load("emotion_model.pkl")
+except FileNotFoundError:
+    st.warning("⚠️ No trained emotion model found.")
+    emotion_model = None
+
+# Load sentiment model and vectorizer
+try:
+    sentiment_model = joblib.load("sentiment_model.pkl")
+    vectorizer = joblib.load("tfidf_vectorizer.pkl")
+except FileNotFoundError:
+    st.warning("⚠️ No trained sentiment model found.")
+    sentiment_model = None
+    vectorizer = None
 
 # Convert MP3 to WAV
 def convert_mp3_to_wav(mp3_file, output_path="temp.wav"):
     audio = AudioSegment.from_file(BytesIO(mp3_file.read()), format="mp3")
     audio.export(output_path, format="wav")
 
-# Save results
+# Save result
 def save_result_to_csv(data, filename="results_log.csv"):
     file_exists = os.path.isfile(filename)
-    with open(filename, "a", newline="", encoding="utf-8") as f:
+    with open(filename, mode="a", newline='', encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=data.keys())
         if not file_exists:
             writer.writeheader()
         writer.writerow(data)
 
-# Upload
+# Upload audio
 uploaded_file = st.file_uploader("📤 Upload an audio file", type=["mp3", "wav"])
 
 if uploaded_file:
     temp_path = "temp.wav"
+
     if uploaded_file.name.endswith(".mp3"):
         convert_mp3_to_wav(uploaded_file, temp_path)
     else:
         with open(temp_path, "wb") as f:
             f.write(uploaded_file.read())
 
+    # Feature extraction and emotion prediction
     features = extract_features(temp_path).reshape(1, -1)
-    transcription = speech_to_text(temp_path)
-
-    # Predictions
     predicted_emotion = emotion_model.predict(features)[0] if emotion_model else "N/A"
-    predicted_sentiment = sentiment_model.predict([transcription])[0] if sentiment_model else "neutral"
 
+    # Transcription + sentiment
+    transcription = speech_to_text(temp_path)
+    if sentiment_model and vectorizer:
+        text_vector = vectorizer.transform([transcription])
+        predicted_sentiment = sentiment_model.predict(text_vector)[0]
+        sentiment_score = max(sentiment_model.predict_proba(text_vector)[0])
+    else:
+        predicted_sentiment = "unknown"
+        sentiment_score = 0.0
+
+    # Display results
     st.subheader("🎧 Transcription")
     st.write(transcription)
 
@@ -54,22 +76,23 @@ if uploaded_file:
     st.write(predicted_emotion)
 
     st.subheader("🧠 Sentiment")
-    st.write(predicted_sentiment)
+    st.write(f"{predicted_sentiment} (Confidence: {sentiment_score:.2f})")
 
-    st.markdown("---")
-    st.subheader("📝 Feedback")
+    # Feedback - Emotion
+    feedback_emotion = st.selectbox("Was the emotion prediction correct?", ["Yes", "No"])
+    corrected_emotion = ""
+    if feedback_emotion == "No":
+        emotion_options = ["happy", "sad", "angry", "neutral"]
+        emotion_options = [e for e in emotion_options if e != predicted_emotion]
+        corrected_emotion = st.selectbox("Select the correct emotion:", emotion_options)
 
-    emotion_feedback = st.selectbox("Was the emotion prediction correct?", ["Yes", "No"])
-    corrected_emotion = None
-    if emotion_feedback == "No":
-        options = [e for e in ["happy", "sad", "angry", "neutral"] if e != predicted_emotion]
-        corrected_emotion = st.selectbox("Select the correct emotion:", options)
-
-    sentiment_feedback = st.selectbox("Was the sentiment prediction correct?", ["Yes", "No"])
-    corrected_sentiment = None
-    if sentiment_feedback == "No":
-        options = [s for s in ["positive", "negative", "neutral"] if s != predicted_sentiment]
-        corrected_sentiment = st.selectbox("Select the correct sentiment:", options)
+    # Feedback - Sentiment
+    feedback_sentiment = st.selectbox("Was the sentiment prediction correct?", ["Yes", "No"])
+    corrected_sentiment = ""
+    if feedback_sentiment == "No":
+        sentiment_options = ["positive", "negative", "neutral"]
+        sentiment_options = [s for s in sentiment_options if s != predicted_sentiment]
+        corrected_sentiment = st.selectbox("Select the correct sentiment:", sentiment_options)
 
     if st.button("Submit Feedback"):
         log_entry = {
@@ -77,11 +100,13 @@ if uploaded_file:
             "transcription": transcription,
             "predicted_emotion": predicted_emotion,
             "predicted_sentiment": predicted_sentiment,
-            "emotion_feedback": emotion_feedback,
-            "sentiment_feedback": sentiment_feedback,
-            "corrected_emotion": corrected_emotion if emotion_feedback == "No" else "",
-            "corrected_sentiment": corrected_sentiment if sentiment_feedback == "No" else "",
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "sentiment_score": round(sentiment_score, 2),
+            "user_feedback_emotion": feedback_emotion,
+            "corrected_emotion": corrected_emotion if feedback_emotion == "No" else "",
+            "user_feedback_sentiment": feedback_sentiment,
+            "corrected_sentiment": corrected_sentiment if feedback_sentiment == "No" else "",
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         save_result_to_csv(log_entry)
-        st.success("✅ Feedback logged!")
+        st.success("✅ Feedback logged successfully!")
+
