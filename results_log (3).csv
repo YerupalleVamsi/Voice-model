@@ -1,0 +1,21 @@
+file_name,transcription,predicted_emotion,sentiment_label,sentiment_score,user_feedback_emotion,corrected_emotion,user_feedback_sentiment,corrected_sentiment,timestamp
+sample_0.wav,"Everything is fine, I guess.",sad,positive,0.81,No,happy,No,negative,2025-06-05 17:19:17
+sample_1.wav,This is the worst day ever.,neutral,negative,0.71,No,sad,No,positive,2025-06-05 17:19:17
+sample_2.wav,I am so frustrated right now.,happy,negative,0.98,No,neutral,No,positive,2025-06-05 17:19:17
+sample_3.wav,I'm feeling great today!,happy,positive,0.86,No,sad,No,negative,2025-06-05 17:19:17
+sample_4.wav,I am so frustrated right now.,angry,negative,0.8,No,happy,No,positive,2025-06-05 17:19:17
+sample_5.wav,This is the worst day ever.,angry,negative,0.94,No,sad,No,positive,2025-06-05 17:19:17
+sample_6.wav,Leave me alone. I'm mad.,sad,positive,0.84,No,happy,No,negative,2025-06-05 17:19:17
+sample_7.wav,I am so frustrated right now.,neutral,negative,0.92,No,happy,No,positive,2025-06-05 17:19:17
+sample_8.wav,"Everything is fine, I guess.",happy,positive,0.8,No,angry,No,negative,2025-06-05 17:19:17
+sample_9.wav,I'm really happy with how things turned out.,sad,positive,0.79,No,neutral,No,negative,2025-06-05 17:19:17
+sample_10.wav,I am so frustrated right now.,angry,negative,0.72,No,happy,No,positive,2025-06-05 17:19:17
+sample_11.wav,Leave me alone. I'm mad.,happy,positive,0.93,No,neutral,No,negative,2025-06-05 17:19:17
+sample_12.wav,I don’t know what to feel anymore.,neutral,positive,0.62,No,angry,No,negative,2025-06-05 17:19:17
+sample_13.wav,I don’t know what to feel anymore.,angry,positive,0.76,No,neutral,No,negative,2025-06-05 17:19:17
+sample_14.wav,I am so frustrated right now.,happy,negative,0.68,No,sad,No,positive,2025-06-05 17:19:17
+sample_15.wav,I'm really happy with how things turned out.,angry,negative,0.64,No,neutral,No,positive,2025-06-05 17:19:17
+sample_16.wav,"Everything is fine, I guess.",angry,negative,0.97,No,neutral,No,positive,2025-06-05 17:19:17
+sample_17.wav,Nothing seems to be going my way.,sad,negative,0.64,No,angry,No,positive,2025-06-05 17:19:17
+sample_18.wav,Leave me alone. I'm mad.,angry,positive,0.81,No,happy,No,negative,2025-06-05 17:19:17
+sample_19.wav,I am so frustrated right now.,happy,negative,0.75,No,neutral,No,positive,2025-06-05 17:19:17
