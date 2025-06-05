@@ -16,6 +16,12 @@ st.title("🎙️ Speech Emotion & Sentiment Analyzer")
 
 # Load model
 model = joblib.load("emotion_model.pkl")
+try:
+    model = joblib.load("emotion_model.pkl")
+except FileNotFoundError:
+    st.error("❌ Emotion model file not found. Please upload 'emotion_model.pkl'.")
+    st.stop()
+
 
 # CSV Logging function
 def save_result_to_csv(data, filename="results_log.csv"):
@@ -30,8 +36,11 @@ def save_result_to_csv(data, filename="results_log.csv"):
 uploaded_file = st.file_uploader("Upload a .wav audio file", type=["wav"])
 
 if uploaded_file:
-    with open("temp.wav", "wb") as f:
-        f.write(uploaded_file.read())
+    unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uploaded_file.name}"
+with open(unique_filename, "wb") as f:
+    f.write(uploaded_file.read())
+
+
 
     # Extract emotion features
     features = extract_features("temp.wav").reshape(1, -1)
