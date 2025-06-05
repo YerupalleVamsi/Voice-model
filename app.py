@@ -92,3 +92,5 @@ if uploaded_file:
         }
         save_result_to_csv(log_entry)
         st.success("✅ Logged successfully!")
+
+    
