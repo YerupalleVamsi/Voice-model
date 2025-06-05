@@ -3,3 +3,7 @@ __pycache__/
 *.pkl
 temp.wav
 feedback.csv
+results_log.csv
+feedback.csv
+temp.wav
+
