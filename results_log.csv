@@ -1,3 +1,0 @@
-file_name,transcription,predicted_emotion,sentiment_label,sentiment_score,user_feedback_emotion,corrected_emotion,user_feedback_sentiment,corrected_sentiment,timestamp
-converted.wav,"I am happy today","sad","positive",0.92,"No","happy","Yes","",2025-06-05 16:00:00
-converted2.wav,"I am frustrated","neutral","neutral",0.85,"Yes","","No","negative",2025-06-05 16:05:00
