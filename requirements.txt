@@ -7,3 +7,5 @@ matplotlib
 speechrecognition
 transformers
 joblib
+torch
+transformers
