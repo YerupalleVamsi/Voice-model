@@ -1,0 +1,4 @@
+file_name,transcription,predicted_emotion,sentiment_label,sentiment_score,user_feedback_emotion,corrected_emotion,user_feedback_sentiment,corrected_sentiment,timestamp
+sample1.wav,I’m so excited about the news!,sad,neutral,0.65,No,happy,No,positive,2025-06-05 17:24:20
+sample2.wav,This is the worst thing ever.,neutral,positive,0.7,No,angry,No,negative,2025-06-05 17:24:20
+sample3.wav,I’m feeling really low today.,neutral,positive,0.6,No,sad,No,negative,2025-06-05 17:24:20
