@@ -50,3 +50,14 @@ if uploaded_file:
             else:
                 df.to_csv("feedback.csv", index=False)
             st.success("✅ Feedback submitted!")
+    import csv
+    from datetime import datetime
+
+    def save_result_to_csv(data, filename="results_log.csv"):
+    file_exists = os.path.isfile(filename)
+    with open(filename, mode="a", newline='', encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=data.keys())
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(data)
+
