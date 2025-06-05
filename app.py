@@ -8,9 +8,9 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 
-from utils.features import extract_features
-from utils.speech_to_text import speech_to_text
-from utils.sentiment import get_sentiment
+from features import extract_features
+from speech_to_text import speech_to_text
+from sentiment import get_sentiment
 
 st.title("🎙️ Speech Emotion & Sentiment Analyzer")
 
