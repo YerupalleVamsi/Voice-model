@@ -1,45 +1,36 @@
-# train_model.py
+import os
 import pandas as pd
 import numpy as np
-import os
-from features import extract_features
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
 import joblib
+from features import extract_features
 
-# Load the feedback log
-df = pd.read_csv("results_log.csv")
+def train_emotion_model(log_file="results_log.csv", model_file="emotion_model.pkl"):
+    if not os.path.exists(log_file):
+        print(f"No training data found at {log_file}")
+        return
 
-# Use corrected emotion if available, else fallback to predicted
-df["label"] = df.apply(
-    lambda row: row["corrected_emotion"] if pd.notna(row["corrected_emotion"]) and row["corrected_emotion"] != "" else row["predicted_emotion"],
-    axis=1
-)
+    df = pd.read_csv(log_file)
+    df = df[df['user_feedback'] == 'No']
+    df = df[df['corrected_emotion'].notnull()]
 
-X = []
-y = []
+    X, y = [], []
 
-for i, row in df.iterrows():
-    try:
-        features = extract_features(f"temp.wav")  # You should save and use original uploaded files, not "temp.wav"
-        X.append(features)
-        y.append(row["label"])
-    except Exception as e:
-        print(f"Skipping file due to error: {e}")
+    for _, row in df.iterrows():
+        if os.path.exists(row['file_name']):
+            features = extract_features(row['file_name'])
+            X.append(features)
+            y.append(row['corrected_emotion'])
 
-X = np.array(X)
-y = np.array(y)
+    if not X:
+        print("No valid data for training.")
+        return
 
-# Train model
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-clf = RandomForestClassifier()
-clf.fit(X_train, y_train)
+    clf = RandomForestClassifier()
+    clf.fit(X, y)
+    joblib.dump(clf, model_file)
+    print(f"✅ Model trained and saved as {model_file}")
 
-# Evaluate
-y_pred = clf.predict(X_test)
-print(classification_report(y_test, y_pred))
+if __name__ == "__main__":
+    train_emotion_model()
 
-# Save model
-joblib.dump(clf, "emotion_model.pkl")
-print("Model saved as emotion_model.pkl")
