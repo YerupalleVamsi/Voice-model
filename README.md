@@ -8,3 +8,6 @@ A Streamlit app that analyzes speech audio for emotion (happy, sad, angry, neutr
 
 ```bash
 pip install -r requirements.txt
+```
+# Live app 
+click here ---> [voicemodel](https://voicemodel5132k.streamlit.app/)
