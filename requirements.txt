@@ -5,10 +5,9 @@ pandas
 scikit-learn
 joblib
 transformers
-speechrecognition
+SpeechRecognition
 pydub
 ffmpeg-python
-ffmpeg
 openai-whisper
-torch  
+torch
 
