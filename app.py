@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import csv
+import time
 from datetime import datetime
 import joblib
 import numpy as np
@@ -9,9 +10,8 @@ from pydub import AudioSegment
 from features import extract_features
 from speech_to_text import speech_to_text
 import subprocess
-import time
 
-# ========== Auto Retrain Logic ==========
+# ==== Model Auto-Retrain Logic ====
 log_file = "results_log.csv"
 train_script = "train_model.py"
 last_run_file = "last_model_update.txt"
@@ -30,12 +30,12 @@ def retrain_models():
     with open(last_run_file, "w") as f:
         f.write(str(time.time()))
 
-# Run training if feedback has been updated
+# Retrain if feedback updated
 if should_retrain():
-    st.info("🔄 Updating models with latest feedback...")
+    st.info("🔄 Updating models with new feedback...")
     retrain_models()
 
-# ========== Load Models ==========
+# ==== Load Models ====
 try:
     emotion_model = joblib.load("emotion_model.pkl")
 except FileNotFoundError:
@@ -50,15 +50,15 @@ except FileNotFoundError:
     sentiment_model = None
     vectorizer = None
 
-# ========== App Title ==========
+# ==== Title ====
 st.title("🎙️ Speech Emotion & Sentiment Analyzer")
 
-# Convert MP3 to WAV
+# ==== Convert MP3 to WAV ====
 def convert_mp3_to_wav(mp3_file, output_path="temp.wav"):
     audio = AudioSegment.from_file(BytesIO(mp3_file.read()), format="mp3")
     audio.export(output_path, format="wav")
 
-# Save Feedback
+# ==== Save Feedback ====
 def save_result_to_csv(data, filename="results_log.csv"):
     file_exists = os.path.isfile(filename)
     with open(filename, mode="a", newline='', encoding="utf-8") as f:
@@ -67,7 +67,7 @@ def save_result_to_csv(data, filename="results_log.csv"):
             writer.writeheader()
         writer.writerow(data)
 
-# Upload Audio
+# ==== Upload Audio ====
 uploaded_file = st.file_uploader("📤 Upload an audio file", type=["mp3", "wav"])
 
 if uploaded_file:
@@ -79,14 +79,28 @@ if uploaded_file:
         with open(temp_path, "wb") as f:
             f.write(uploaded_file.read())
 
-    # Extract features and predict emotion
+    # ==== Language Selection ====
+    st.subheader("🌍 Choose Language for Transcription")
+    language_map = {
+        "English": "en",
+        "Hindi": "hi",
+        "Telugu": "te",
+        "Tamil": "ta",
+        "Spanish": "es",
+        "German": "de",
+        "French": "fr"
+    }
+    selected_language_label = st.selectbox("Language", list(language_map.keys()))
+    selected_language = language_map[selected_language_label]
+
+    # ==== Feature Extraction + Emotion ====
     features = extract_features(temp_path).reshape(1, -1)
     predicted_emotion = emotion_model.predict(features)[0] if emotion_model else "N/A"
 
-    # Transcribe audio
-    transcription = speech_to_text(temp_path)
+    # ==== Transcription using Whisper ====
+    transcription = speech_to_text(temp_path, language=selected_language)
 
-    # Predict sentiment
+    # ==== Sentiment Prediction ====
     if sentiment_model and vectorizer:
         text_vector = vectorizer.transform([transcription])
         predicted_sentiment = sentiment_model.predict(text_vector)[0]
@@ -95,7 +109,7 @@ if uploaded_file:
         predicted_sentiment = "unknown"
         sentiment_score = 0.0
 
-    # Show results
+    # ==== Display Results ====
     st.subheader("🎧 Transcription")
     st.write(transcription)
 
@@ -105,10 +119,10 @@ if uploaded_file:
     st.subheader("🧠 Sentiment")
     st.write(f"{predicted_sentiment} (Confidence: {sentiment_score:.2f})")
 
-    # Feedback
+    # ==== Feedback Section ====
     st.subheader("📝 Feedback")
-    
-    # Emotion
+
+    # Emotion feedback
     feedback_emotion = st.selectbox("Was the emotion prediction correct?", ["Yes", "No"])
     corrected_emotion = ""
     if feedback_emotion == "No":
@@ -116,7 +130,7 @@ if uploaded_file:
         emotion_options = [e for e in emotion_options if e != predicted_emotion]
         corrected_emotion = st.selectbox("Select the correct emotion:", emotion_options)
 
-    # Sentiment
+    # Sentiment feedback
     feedback_sentiment = st.selectbox("Was the sentiment prediction correct?", ["Yes", "No"])
     corrected_sentiment = ""
     if feedback_sentiment == "No":
@@ -124,7 +138,7 @@ if uploaded_file:
         sentiment_options = [s for s in sentiment_options if s != predicted_sentiment]
         corrected_sentiment = st.selectbox("Select the correct sentiment:", sentiment_options)
 
-    # Submit
+    # Submit feedback
     if st.button("Submit Feedback"):
         log_entry = {
             "file_name": uploaded_file.name,
@@ -139,6 +153,6 @@ if uploaded_file:
             "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         save_result_to_csv(log_entry)
-        st.success("✅ Feedback logged! Models will update automatically.")
+        st.success("✅ Feedback saved! Models will be retrained automatically.")
 
 
