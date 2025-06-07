@@ -1,10 +1,12 @@
-import whisper
+import speech_recognition as sr
 
-model = whisper.load_model("base")  # or "small", "medium", "large"
-
-def speech_to_text(audio_file, language="en"):
+def speech_to_text(audio_file, language="en-US"):
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(audio_file) as source:
+        audio = recognizer.record(source)
     try:
-        result = model.transcribe(audio_file, language=language)
-        return result["text"]
-    except Exception as e:
-        return f"Whisper error: {str(e)}"
+        return recognizer.recognize_google(audio, language=language)
+    except sr.UnknownValueError:
+        return "Could not understand audio"
+    except sr.RequestError:
+        return "Google Speech Recognition service error"
