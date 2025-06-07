@@ -9,4 +9,6 @@ speechrecognition
 pydub
 ffmpeg-python
 ffmpeg
+openai-whisper
+torch  
 
