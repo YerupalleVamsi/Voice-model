@@ -1,71 +1,159 @@
-
+# ==== app.py ====
 import streamlit as st
 import os
-import numpy as np
-import pandas as pd
+import csv
+import subprocess
+import time
+from datetime import datetime
 import joblib
-from features import extract_features
-from speech_to_text import transcribe_audio
+import numpy as np
+from io import BytesIO
 from pydub import AudioSegment
-import uuid
-import librosa
-import tempfile
+from features import extract_features
+from speech_to_text import speech_to_text
 
-st.set_page_config(page_title="Speech Emotion & Sentiment Analyzer", layout="centered")
-st.markdown("<style>body { font-family: Arial, sans-serif; }</style>", unsafe_allow_html=True)
+# === Auto-retrain config ===
+log_file = "results_log.csv"
+train_script = "train_model.py"
+last_run_file = "last_model_update.txt"
 
-emotion_model = joblib.load("emotion_model.pkl")
-sentiment_model = joblib.load("sentiment_model.pkl")
-vectorizer = joblib.load("tfidf_vectorizer.pkl")
+def should_retrain():
+    if not os.path.exists(log_file):
+        return False
+    if not os.path.exists(last_run_file):
+        return True
+    with open(last_run_file, "r") as f:
+        last_time = float(f.read().strip())
+    return os.path.getmtime(log_file) > last_time
 
-def save_feedback(audio, text, predicted_emotion, predicted_sentiment, correct_emotion, correct_sentiment):
-    feedback = pd.DataFrame([{
-        "audio_file": audio,
-        "transcribed_text": text,
-        "predicted_emotion": predicted_emotion,
-        "predicted_sentiment": predicted_sentiment,
-        "correct_emotion": correct_emotion,
-        "correct_sentiment": correct_sentiment
-    }])
-    feedback.to_csv("results_log.csv", mode='a', header=not os.path.exists("results_log.csv"), index=False)
+def retrain_models():
+    subprocess.run(["python", train_script])
+    with open(last_run_file, "w") as f:
+        f.write(str(time.time()))
 
-st.title("🎤 Speech Emotion & Sentiment Analyzer")
-uploaded_file = st.file_uploader("Upload an MP3 or WAV file", type=["mp3", "wav"])
+# === Title ===
+st.title("🎙️ Speech Emotion & Sentiment Analyzer (Google Speech API)")
+
+# === Manual retrain option ===
+if st.sidebar.button("🔁 Force Retrain Now"):
+    retrain_models()
+    st.sidebar.success("✅ Models retrained manually.")
+
+# === Retrain if needed ===
+if should_retrain():
+    st.info("🔄 Training models from new feedback...")
+    retrain_models()
+
+# === Load Models ===
+try:
+    emotion_model = joblib.load("emotion_model.pkl")
+except FileNotFoundError:
+    st.warning("⚠️ No trained emotion model found.")
+    emotion_model = None
+
+try:
+    sentiment_model = joblib.load("sentiment_model.pkl")
+    vectorizer = joblib.load("tfidf_vectorizer.pkl")
+except FileNotFoundError:
+    st.warning("⚠️ No trained sentiment model found.")
+    sentiment_model = None
+    vectorizer = None
+
+# === Convert MP3 to WAV ===
+def convert_mp3_to_wav(mp3_file, output_path="temp.wav"):
+    audio = AudioSegment.from_file(BytesIO(mp3_file.read()), format="mp3")
+    audio.export(output_path, format="wav")
+
+# === Save Feedback to CSV ===
+def save_result_to_csv(data, filename="results_log.csv"):
+    file_exists = os.path.isfile(filename)
+    with open(filename, mode="a", newline='', encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=data.keys())
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(data)
+
+# === File Upload ===
+uploaded_file = st.file_uploader("📤 Upload an audio file", type=["mp3", "wav"])
 
 if uploaded_file:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav_file:
-        if uploaded_file.type == "audio/mpeg":
-            sound = AudioSegment.from_mp3(uploaded_file)
-        else:
-            sound = AudioSegment.from_file(uploaded_file)
-        sound.export(temp_wav_file.name, format="wav")
-        st.audio(temp_wav_file.name)
+    temp_path = "temp.wav"
 
-        features = extract_features(temp_wav_file.name)
-        try:
-            emotion = emotion_model.predict([features])[0]
-            emotion_probs = emotion_model.predict_proba([features])[0]
-        except Exception as e:
-            st.error(f"Emotion model error: {e}")
-            emotion, emotion_probs = "Unknown", []
+    if uploaded_file.name.endswith(".mp3"):
+        convert_mp3_to_wav(uploaded_file, temp_path)
+    else:
+        with open(temp_path, "wb") as f:
+            f.write(uploaded_file.read())
 
-        text = transcribe_audio(temp_wav_file.name)
-        try:
-            tfidf_input = vectorizer.transform([text])
-            sentiment = sentiment_model.predict(tfidf_input)[0]
-            sentiment_probs = sentiment_model.predict_proba(tfidf_input)[0]
-        except Exception as e:
-            st.error(f"Sentiment model error: {e}")
-            sentiment, sentiment_probs = "Unknown", []
+    # === Language Selection ===
+    st.subheader("🌍 Choose Transcription Language")
+    language_map = {
+        "English": "en-US",
+        "Hindi": "hi-IN",
+        "Telugu": "te-IN",
+        "Tamil": "ta-IN",
+        "Spanish": "es-ES",
+        "German": "de-DE",
+        "French": "fr-FR"
+    }
+    selected_language_label = st.selectbox("Language", list(language_map.keys()))
+    selected_language = language_map[selected_language_label]
 
-        st.subheader("🔊 Predictions")
-        st.write(f"**Emotion:** {emotion} — {dict(zip(emotion_model.classes_, emotion_probs))}")
-        st.write(f"**Sentiment:** {sentiment} — {dict(zip(sentiment_model.classes_, sentiment_probs))}")
-        st.write(f"**Transcribed Text:** {text}")
+    # === Feature Extraction + Emotion ===
+    features = extract_features(temp_path).reshape(1, -1)
+    predicted_emotion = emotion_model.predict(features)[0] if emotion_model else "N/A"
 
-        st.subheader("✍️ Feedback")
-        corrected_emotion = st.selectbox("Correct Emotion", [""] + [e for e in emotion_model.classes_ if e != emotion])
-        corrected_sentiment = st.selectbox("Correct Sentiment", [""] + [s for s in sentiment_model.classes_ if s != sentiment])
-        if st.button("Submit Feedback"):
-            save_feedback(temp_wav_file.name, text, emotion, sentiment, corrected_emotion, corrected_sentiment)
-            st.success("Feedback submitted. Thank you!")
+    # === Transcribe using Google API ===
+    transcription = speech_to_text(temp_path, language=selected_language)
+
+    # === Sentiment Prediction ===
+    if sentiment_model and vectorizer:
+        text_vector = vectorizer.transform([transcription])
+        predicted_sentiment = sentiment_model.predict(text_vector)[0]
+        sentiment_score = max(sentiment_model.predict_proba(text_vector)[0])
+    else:
+        predicted_sentiment = "unknown"
+        sentiment_score = 0.0
+
+    # === Display Results ===
+    st.subheader("🎧 Transcription")
+    st.write(transcription)
+
+    st.subheader("🎭 Detected Emotion")
+    st.write(predicted_emotion)
+
+    st.subheader("🧠 Sentiment")
+    st.write(f"{predicted_sentiment} (Confidence: {sentiment_score:.2f})")
+
+    # === Feedback ===
+    st.subheader("📝 Feedback")
+    feedback_emotion = st.selectbox("Was the emotion prediction correct?", ["Yes", "No"])
+    corrected_emotion = ""
+    if feedback_emotion == "No":
+        emotion_options = ["happy", "sad", "angry", "neutral"]
+        emotion_options = [e for e in emotion_options if e != predicted_emotion]
+        corrected_emotion = st.selectbox("Select the correct emotion:", emotion_options)
+
+    feedback_sentiment = st.selectbox("Was the sentiment prediction correct?", ["Yes", "No"])
+    corrected_sentiment = ""
+    if feedback_sentiment == "No":
+        sentiment_options = ["positive", "negative", "neutral"]
+        sentiment_options = [s for s in sentiment_options if s != predicted_sentiment]
+        corrected_sentiment = st.selectbox("Select the correct sentiment:", sentiment_options)
+
+    if st.button("Submit Feedback"):
+        log_entry = {
+            "file_name": uploaded_file.name,
+            "transcription": transcription,
+            "predicted_emotion": predicted_emotion,
+            "predicted_sentiment": predicted_sentiment,
+            "sentiment_score": round(sentiment_score, 2),
+            "user_feedback_emotion": feedback_emotion,
+            "corrected_emotion": corrected_emotion if feedback_emotion == "No" else predicted_emotion,
+            "user_feedback_sentiment": feedback_sentiment,
+            "corrected_sentiment": corrected_sentiment if feedback_sentiment == "No" else predicted_sentiment,
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        save_result_to_csv(log_entry)
+        st.success("✅ Feedback logged! Models will retrain automatically if needed.")
+
