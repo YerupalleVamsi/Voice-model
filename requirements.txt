@@ -8,6 +8,6 @@ transformers
 SpeechRecognition
 pydub
 ffmpeg-python
-openai-whisper
-torch
+openai-whisper==20230314
+torch==2.0.1
 
