@@ -1,70 +1,41 @@
-import os
 import pandas as pd
-import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
+import pickle
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.pipeline import Pipeline
-import joblib
-from features import extract_features
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
 
-def train_emotion_model(log_file="results_log.csv", model_file="emotion_model.pkl"):
-    if not os.path.exists(log_file):
-        print(f"⚠️ No training data found at {log_file}")
-        return
+# Load feedback
+data = pd.read_csv("results_log.csv")
 
-    df = pd.read_csv(log_file)
-    df = df[(df['user_feedback_emotion'] == 'No') & (df['corrected_emotion'].notnull())]
+# Clean rows with missing values
+data = data.dropna()
 
-    X, y = [], []
-    for _, row in df.iterrows():
-        if os.path.exists(row['file_name']):
-            try:
-                features = extract_features(row['file_name'])
-                X.append(features)
-                y.append(row['corrected_emotion'])
-            except:
-                print(f"⚠️ Skipping file (error extracting features): {row['file_name']}")
-    
-    if not X:
-        print("❌ No valid emotion training data.")
-        return
+# Train sentiment model
+X_text = data['Transcription']
+y_sentiment = data['Corrected Sentiment']
 
-    clf = RandomForestClassifier()
-    clf.fit(X, y)
-    joblib.dump(clf, model_file)
-    print(f"✅ Emotion model trained and saved as {model_file}")
+vectorizer = TfidfVectorizer()
+X_vec = vectorizer.fit_transform(X_text)
 
+sentiment_model = LogisticRegression()
+sentiment_model.fit(X_vec, y_sentiment)
 
-def train_sentiment_model(log_file="results_log.csv", model_file="sentiment_model.pkl", vectorizer_file="tfidf_vectorizer.pkl"):
-    if not os.path.exists(log_file):
-        print(f"⚠️ No training data found at {log_file}")
-        return
+# Save sentiment model
+with open("sentiment_model.pkl", "wb") as f:
+    pickle.dump(sentiment_model, f)
 
-    df = pd.read_csv(log_file)
-    df = df[(df['user_feedback_sentiment'] == 'No') & (df['corrected_sentiment'].notnull())]
+with open("tfidf_vectorizer.pkl", "wb") as f:
+    pickle.dump(vectorizer, f)
 
-    if df.empty:
-        print("❌ No valid sentiment training data.")
-        return
+# Train emotion model
+y_emotion = data['Corrected Emotion']
+emotion_model = LogisticRegression()
+emotion_model.fit(X_vec, y_emotion)
 
-    X_texts = df['transcription']
-    y = df['corrected_sentiment']
+with open("emotion_model.pkl", "wb") as f:
+    pickle.dump(emotion_model, f)
 
-    vectorizer = TfidfVectorizer()
-    X_vec = vectorizer.fit_transform(X_texts)
+print("✅ Models retrained and saved.")
 
-    model = LogisticRegression(max_iter=1000)
-    model.fit(X_vec, y)
-
-    joblib.dump(model, model_file)
-    joblib.dump(vectorizer, vectorizer_file)
-    print(f"✅ Sentiment model trained and saved as {model_file}")
-    print(f"✅ Vectorizer saved as {vectorizer_file}")
-
-
-if __name__ == "__main__":
-    train_emotion_model()
-    train_sentiment_model()
 
 
